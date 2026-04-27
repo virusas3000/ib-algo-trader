@@ -6,16 +6,16 @@ Multi-strategy day trading engine
 # ─── CONNECTION ──────────────────────────────────────────
 IB_HOST = "127.0.0.1"
 IB_PORT = 7497          # 7497 = TWS Paper | 4002 = Gateway Paper | 7496 = TWS Live
-CLIENT_ID = 15
+CLIENT_ID = 21
 
 # ─── ACCOUNT & RISK ─────────────────────────────────────
 RISK_PER_TRADE = 0.005      # 0.5% risk per trade (reduced after losses)
 MAX_DAILY_LOSS_PCT = 0.02   # 2% max daily loss → hard stop
-MAX_POSITIONS = 3           # max 3 concurrent (avoid overexposure)
-MAX_TRADES_PER_DAY = 10
+MAX_POSITIONS = 15           # max 15 concurrent (increased for ML trading)
+MAX_TRADES_PER_DAY = 50
 MAX_CONSECUTIVE_LOSSES = 2  # disable strategy after just 2 losses
 MAX_POSITION_PCT = 0.10     # max 10% of account in one trade
-MIN_RISK_REWARD = 2.0       # require 2:1 R:R minimum
+MIN_RISK_REWARD = 1.5       # require 1.5:1 R:R minimum (reduced for more opportunities)
 
 # ─── MARKET HOURS (ET) ───────────────────────────────────
 MARKET_OPEN_HOUR = 9
@@ -55,6 +55,9 @@ GAP_STOP_PCT = 0.5          # wider stop 0.5% beyond gap level
 GAP_MAX_SPY_TREND = 0.8     # don't fade gap-up if SPY trending up >0.8%
 GAP_REQUIRE_REVERSAL = True # wait for first 5min candle to show reversal
 
+# ─── DISABLED STRATEGIES (manual override) ────────────────
+DISABLED_STRATEGIES = ["GAP_FILL"]   # gap-fill chopped on 04-23 (-$2,402); disabled until reviewed
+
 # ─── POWER HOUR ──────────────────────────────────────────
 POWER_HOUR_START = 15       # 3:00 PM ET
 POWER_HOUR_START_MIN = 0
@@ -67,43 +70,40 @@ VIX_LOW = 15                # below = favor mean reversion
 VIX_HIGH = 25               # above = reduce size, ORB only
 VIX_HIGH_SIZE_MULT = 0.5    # trade half size when VIX > 25
 
-# ─── WATCHLIST ───────────────────────────────────────────
+# ─── WATCHLIST: 50 hand-picked day-trade names ─────────────────────────
+# Selection criteria: avg daily volume > 10M, ATR% > 1.5%, tight spreads,
+# active options chain, news/social-media-sensitive. Updated 2026.
 DEFAULT_WATCHLIST = [
-    # Major ETFs & Indices
-    "SPY", "QQQ", "IWM", "DIA", "VTI", "EFA", "EEM", "GLD", "SLV", "TLT",
-    
-    # Mega Cap Tech
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "NFLX", "ADBE", "CRM",
-    "ORCL", "INTC", "CSCO", "IBM", "PYPL", "UBER", "SHOP", "SQ",
-    
-    # Semiconductors
-    "AMD", "QCOM", "AVGO", "MU", "AMAT", "LRCX", "MRVL", "ADI",
-    
-    # Financial Services
-    "JPM", "BAC", "WFC", "GS", "MS", "C", "USB", "PNC", "COF",
-    "V", "MA", "AXP", "BRK.B", "BLK", "SCHW", "SPGI", "ICE", "CME",
-    
-    # Healthcare & Biotech
-    "JNJ", "UNH", "PFE", "ABBV", "TMO", "ABT", "MRK", "LLY", "DHR", "BMY",
-    "AMGN", "GILD", "BIIB", "REGN", "VRTX", "MRNA", "ZTS", "CVS",
-    
-    # Consumer & Retail
-    "WMT", "HD", "PG", "KO", "PEP", "MCD", "SBUX", "NKE", "TGT", "COST",
-    "LOW", "DIS", "CMCSA", "VZ", "T", "PM", "MO", "CL",
-    
-    # Energy & Materials
-    "XOM", "CVX", "COP", "EOG", "SLB", "MPC", "VLO", "OXY", "HAL", "BKR",
-    
-    # Industrial & Defense
-    "BA", "CAT", "GE", "MMM", "HON", "UPS", "FDX", "LMT", "RTX", "NOC"
+    # High-liquidity ETFs (5) — always tradeable, low slippage
+    "SPY", "QQQ", "IWM", "DIA", "GLD",
+    # Volatility-leveraged ETFs (3) — for regime plays
+    "TQQQ", "SQQQ", "UVXY",
+    # Mega-cap tech (10) — primary day-trade universe
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "NFLX", "AMD", "AVGO",
+    # Hot semis & AI (5)
+    "MU", "MRVL", "ARM", "SMCI", "PLTR",
+    # High-beta growth & meme-prone (8)
+    "COIN", "MSTR", "RIVN", "LCID", "SOFI", "HOOD", "GME", "AMC",
+    # Financials w/ daily action (5)
+    "JPM", "BAC", "GS", "SCHW", "BX",
+    # Healthcare/biotech movers (4)
+    "LLY", "UNH", "MRNA", "VRTX",
+    # Consumer & retail momentum (4)
+    "DIS", "SBUX", "NKE", "COST",
+    # Energy volatility (3)
+    "XOM", "OXY", "CVX",
+    # China ADRs (3) — high overnight gap + sentiment-driven
+    "BABA", "PDD", "NIO",
 ]
+assert len(DEFAULT_WATCHLIST) == 50, f"Watchlist must be 50 stocks, got {len(DEFAULT_WATCHLIST)}"
 
 # ─── MISC ────────────────────────────────────────────────
 BAR_SIZE = "5 mins"
 TRADE_LOG_CSV = "trade_history.csv"
 
 # ─── DIRECTIONAL BIAS ────────────────────────────────────
-LONG_ONLY = True            # only take LONG trades today
+LONG_ONLY = True           # only take LONG trades
+SHORT_ONLY = False           # only take SHORT trades (overrides LONG_ONLY)
 
 # ─── TELEGRAM NOTIFICATIONS ──────────────────────────────
 TELEGRAM_BOT_TOKEN="8656598981:AAEdqezTQoY2RgJ-mw0j-sZzIZ_0hwU8Ze0"  # Your bot token
@@ -117,3 +117,13 @@ SENTIMENT_MIN_CONFIDENCE = 0.3          # Minimum confidence for sentiment signa
 SENTIMENT_WEIGHT = 0.25                 # Sentiment influence on decision (25%)
 SENTIMENT_POSITION_MULTIPLIER = 0.5     # Max 50% position size increase from sentiment
 MAX_SENTIMENT_POSITIONS = 2             # Max positions from pure sentiment plays
+
+# ─── MACHINE LEARNING ──────────────────────────────────────
+ML_ENABLED = True                       # Enable ML predictions
+ML_MODEL_PATH = "ml_model.pkl"          # Path to trained ML model
+ML_SCALER_PATH = "ml_scaler.pkl"        # Path to feature scaler
+ML_LABELS_PATH = "ml_labels.pkl"        # Path to label encoder
+ML_TRAINING_DATA_PATH = "ml_training_data.csv"  # Path to training data collection
+ML_MIN_CONFIDENCE = 0.75                # Minimum confidence for ML signals (raised from 0.65 after 04-23 losses)
+ML_RETRAIN_INTERVAL = 24                # Retrain model every 24 hours
+ML_MIN_TRAINING_SAMPLES = 500           # Minimum samples needed for retraining

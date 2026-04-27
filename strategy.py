@@ -107,10 +107,13 @@ class Strategy:
 
     @property
     def active_strategies(self) -> List[StrategyName]:
-        """Only ORB when VIX > 25."""
+        """Only ORB when VIX > 25. Honors DISABLED_STRATEGIES from config."""
+        disabled_manual = set(getattr(cfg, 'DISABLED_STRATEGIES', []))
         if self.vix > cfg.VIX_HIGH:
-            return [StrategyName.ORB]
-        return [s for s in StrategyName if not self.stats[s.value].disabled]
+            return [s for s in [StrategyName.ORB] if s.value not in disabled_manual]
+        return [s for s in StrategyName
+                if not self.stats[s.value].disabled
+                and s.value not in disabled_manual]
 
     def favor_mean_reversion(self) -> bool:
         return self.vix < cfg.VIX_LOW
@@ -139,7 +142,9 @@ class Strategy:
             return False
         if strategy.value in self.stats and self.stats[strategy.value].disabled:
             return False
-        # Long-only filter
+        # Long-only / Short-only filter
+        if getattr(cfg, 'SHORT_ONLY', False) and side == Side.LONG:
+            return False
         if getattr(cfg, 'LONG_ONLY', False) and side == Side.SHORT:
             return False
         return True

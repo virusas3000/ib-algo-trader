@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import threading
 from sentiment_analyzer import TrendingStockAnalyzer, SentimentData
+import config as cfg
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
@@ -219,6 +220,14 @@ class EnhancedStrategy:
     def __init__(self, original_strategy, sentiment_integration):
         self.original_strategy = original_strategy
         self.sentiment_integration = sentiment_integration
+        
+        # Forward the active_strategies attribute if it exists
+        if hasattr(original_strategy, 'active_strategies'):
+            self.active_strategies = original_strategy.active_strategies
+    
+    def __getattr__(self, name):
+        """Forward any missing attributes to the original strategy"""
+        return getattr(self.original_strategy, name)
     
     def check_entry(self, symbol, bars, current_time):
         """Enhanced entry check with sentiment analysis"""
@@ -263,7 +272,7 @@ def integrate_sentiment_with_trader(trader_instance):
     logger.info("Integrating sentiment analysis with trading bot...")
     
     # Initialize sentiment integration
-    sentiment_integration = SentimentTradingIntegration(trader_instance.config.__dict__)
+    sentiment_integration = SentimentTradingIntegration(cfg.__dict__)
     
     # Start sentiment monitoring
     sentiment_integration.start_sentiment_monitoring()

@@ -1,8 +1,22 @@
+# Runtime artifacts
+*.pkl
+*.db
+*.parquet
 *.log
+algo.log
+trade_history.csv
+ml_training_data.csv
+
+# Flags / state
+aggressive_mode.flag
+trending_watchlist.txt
+symbol_blacklist.txt
+trade_lessons.json
+learned_rules.txt
+
+# Python
 __pycache__/
 *.pyc
-*.pyo
-.env
-*.xlsx
-*.csv
+.venv/
+venv/
 .DS_Store

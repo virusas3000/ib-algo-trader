@@ -8,6 +8,7 @@ import argparse
 import csv
 import logging
 import os
+from pathlib import Path
 import sys
 import time as _time
 from datetime import datetime, time, timezone
@@ -25,6 +26,7 @@ from indicators import compute_indicators
 from strategy import Strategy, Signal, Side, ExitReason, StrategyName
 from telegram_notifier import TelegramNotifier
 from sentiment_integration import integrate_sentiment_with_trader
+from ml_integration import integrate_ml_with_trader
 
 ET = ZoneInfo("America/New_York")
 
@@ -264,6 +266,25 @@ class OrderManager:
         trade = self.ib.placeOrder(contract, order)
         trade.fillEvent += self._on_fill
         log.info(f"Order placed: {trade}")
+        
+        # Send Telegram trade entry notification
+        if self.telegram:
+            try:
+                # Get approximate account size for position % calculation
+                account_size = 1000000  # Default fallback, will be updated from strategy if available
+                if hasattr(self, '_account_size'):
+                    account_size = self._account_size
+                    
+                self.telegram.send_trade_entry(
+                    symbol=signal.symbol,
+                    side=signal.side.value,
+                    strategy=signal.strategy.value,
+                    entry_price=signal.entry,
+                    size=signal.size,
+                    account_size=account_size
+                )
+            except Exception as e:
+                log.error(f"Failed to send trade entry notification: {e}")
 
     def exit(self, symbol: str, side: Side, size: int, reason: str):
         if self.dry_run:
@@ -333,13 +354,51 @@ class Trader:
         log.info("🧠 Initializing sentiment analysis...")
         try:
             self.sentiment_integration = integrate_sentiment_with_trader(self)
-            log.info("✅ Sentiment analysis integration complete!")
         except Exception as e:
-            log.error(f"⚠️  Sentiment analysis failed to initialize: {e}")
+            log.error(f"Sentiment integration failed: {e}")
+            self.sentiment_integration = None
             log.info("📊 Continuing without sentiment analysis...")
 
+        # 🤖 Initialize ML integration  
+        log.info("🤖 Initializing ML analysis...")
+        try:
+            self.ml_integration = integrate_ml_with_trader(self, self.sentiment_integration)
+        except Exception as e:
+            log.error(f"ML integration failed: {e}")
+            self.ml_integration = None
+            log.info("📈 Continuing without ML analysis...")
+
     def run(self):
-        watchlist = cfg.DEFAULT_WATCHLIST
+        watchlist = list(cfg.DEFAULT_WATCHLIST)
+        # === Merge in trending tickers from Reddit (auto-refreshed by cron) ===
+        try:
+            from pathlib import Path as _P
+            tr_file = _P(__file__).parent / 'trending_watchlist.txt'
+            if tr_file.exists():
+                trending = []
+                for line in tr_file.read_text().splitlines():
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    sym = line.split()[0].split('#')[0].strip()
+                    if sym and sym not in watchlist:
+                        trending.append(sym)
+                if trending:
+                    watchlist.extend(trending)
+                    log.info(f"[TRENDING] Added {len(trending)} trending tickers from Reddit: {trending}")
+        except Exception as e:
+            log.warning(f"[TRENDING] Could not load trending list: {e}")
+        # === Apply learned blacklist from historical losing trades ===
+        try:
+            from pathlib import Path as _P
+            bl_file = _P(__file__).parent / 'symbol_blacklist.txt'
+            if bl_file.exists():
+                blacklist = {s.strip() for s in bl_file.read_text().splitlines() if s.strip()}
+                before = len(watchlist)
+                watchlist = [s for s in watchlist if s not in blacklist]
+                log.info(f"[LEARN] Blacklist applied: removed {before-len(watchlist)} symbols {sorted(blacklist)}")
+        except Exception as e:
+            log.warning(f"[LEARN] Could not apply blacklist: {e}")
         self.data = DataManager(self.ib)
         self.orders = OrderManager(self.ib, dry_run=self.dry_run, telegram=self.telegram)
         self._init_strategy()
@@ -413,10 +472,17 @@ class Trader:
                     log.info(f"[DAY TRADE] No new positions after {cfg.NO_NEW_POSITIONS_HOUR}:{cfg.NO_NEW_POSITIONS_MIN:02d} PM ET")
                     self._new_pos_warning_sent = True
 
-                if now.second not in (0, 30):
+                # Check for aggressive trading mode
+                aggressive_mode = Path("aggressive_mode.flag").exists()
+                scan_frequency = 1 if aggressive_mode else 2  # Every minute if aggressive, every 2 minutes otherwise
+                
+                if now.second != 0:  # Only scan at top of minute
                     continue
 
-                if now.second == 0 and now.minute % 2 == 0:
+                # More frequent scanning in aggressive mode
+                should_scan = now.minute % scan_frequency == 0
+                
+                if should_scan:
                     log.info(f"[SCAN] {now.strftime('%H:%M ET')} | "
                              f"Positions: {len(self.strategy.positions)} | "
                              f"Trades: {self.strategy.trade_count} | "
@@ -429,7 +495,17 @@ class Trader:
                             if now.minute % 30 == 0:  # Log sentiment summary every 30 min
                                 self.sentiment_integration.log_sentiment_summary()
                         except Exception as e:
-                            log.error(f"Sentiment check failed: {e}")
+                            log.error(f"Sentiment opportunity check failed: {e}")
+
+                    # 🤖 ML analysis and retraining every 15 minutes
+                    if hasattr(self, 'ml_integration') and now.minute % 15 == 0:
+                        try:
+                            self.check_ml_opportunities()
+                            if now.minute % 60 == 0:  # Log ML status every hour
+                                self.ml_integration.log_ml_summary()
+                                self.manage_ml_retraining()  # Check for retraining
+                        except Exception as e:
+                            log.error(f"ML analysis failed: {e}")
 
                 for sym in watchlist:
                     try:
@@ -536,6 +612,17 @@ class Trader:
                 pos = self.strategy.positions[sym]
                 self.orders.exit(sym, pos.side, pos.size, reason.value)
                 self.strategy.record_exit(sym, price, reason)
+                
+                # Send Telegram exit notification for mass closure
+                pnl = round((price - pos.entry_price) * pos.size * (1 if pos.side == Side.LONG else -1), 2)
+                try:
+                    self.telegram.send_trade_exit(
+                        symbol=sym, side=pos.side.value, strategy=pos.strategy.value,
+                        entry_price=pos.entry_price, exit_price=price, 
+                        size=pos.size, pnl=pnl, reason=reason.value
+                    )
+                except Exception as e:
+                    log.error(f"Failed to send trade exit notification for {sym}: {e}")
             except Exception as e:
                 log.error(f"Error flattening {sym}: {e}")
 
