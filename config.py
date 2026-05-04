@@ -119,7 +119,7 @@ TRADE_LOG_CSV = "trade_history.csv"
 
 # ─── DIRECTIONAL BIAS ────────────────────────────────────
 LONG_ONLY = False          # only take LONG trades
-SHORT_ONLY = True            # only take SHORT trades (overrides LONG_ONLY)
+SHORT_ONLY = False           # only take SHORT trades (overrides LONG_ONLY)
 
 # ─── TELEGRAM NOTIFICATIONS ──────────────────────────────
 TELEGRAM_BOT_TOKEN="8656598981:AAEdqezTQoY2RgJ-mw0j-sZzIZ_0hwU8Ze0"  # Your bot token
