@@ -63,7 +63,7 @@ ORB_BLOCK_HOURS_ET = []    # MAX PROFIT MODE — no hour blocks
 
 # ─── DIRECTION BIAS ──────────────────────────────────────────
 # SHORT trades: 7 trades, 1 win (14%), -$2,909. Disable SHORT until SHORT signal quality improves.
-LONG_ONLY = True             # only take LONG trades — SHORT side has been catastrophic
+LONG_ONLY = False            # only take LONG trades — SHORT side has been catastrophic
 
 # ─── TRADE QUALITY GATE ──────────────────────────────────────
 TRADE_QUALITY_MIN_WIN_PROB = 0.35   # MAX PROFIT MODE — lowered from 0.50
@@ -118,8 +118,8 @@ BAR_SIZE = "5 mins"
 TRADE_LOG_CSV = "trade_history.csv"
 
 # ─── DIRECTIONAL BIAS ────────────────────────────────────
-LONG_ONLY = True           # only take LONG trades
-SHORT_ONLY = False           # only take SHORT trades (overrides LONG_ONLY)
+LONG_ONLY = False          # only take LONG trades
+SHORT_ONLY = True            # only take SHORT trades (overrides LONG_ONLY)
 
 # ─── TELEGRAM NOTIFICATIONS ──────────────────────────────
 TELEGRAM_BOT_TOKEN="8656598981:AAEdqezTQoY2RgJ-mw0j-sZzIZ_0hwU8Ze0"  # Your bot token
