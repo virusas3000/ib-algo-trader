@@ -10,16 +10,18 @@ from datetime import datetime
 log = logging.getLogger("telegram")
 
 class TelegramNotifier:
-    def __init__(self, bot_token: str, chat_id: str):
+    def __init__(self, bot_token: str, chat_id: str, thread_id: str = None):
         """
         Initialize Telegram notifier
         
         Args:
             bot_token: Your Telegram bot token (from BotFather)
             chat_id: Your Telegram chat ID (where to send messages)
+            thread_id: Optional thread/topic ID for group superchats
         """
         self.bot_token = bot_token
         self.chat_id = chat_id
+        self.thread_id = thread_id
         self.base_url = f"https://api.telegram.org/bot{bot_token}"
         self.enabled = bool(bot_token and chat_id)
         
@@ -43,6 +45,9 @@ class TelegramNotifier:
             # Only add parse_mode if it's not None
             if parse_mode is not None:
                 payload["parse_mode"] = parse_mode
+
+            if self.thread_id:
+                payload["message_thread_id"] = int(self.thread_id)
             
             response = requests.post(url, json=payload, timeout=10)
             response.raise_for_status()

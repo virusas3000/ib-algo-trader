@@ -6,15 +6,15 @@ Multi-strategy day trading engine
 # ─── CONNECTION ──────────────────────────────────────────
 IB_HOST = "127.0.0.1"
 IB_PORT = 7497          # 7497 = TWS Paper | 4002 = Gateway Paper | 7496 = TWS Live
-CLIENT_ID = 29
+CLIENT_ID = 30
 
 # ─── ACCOUNT & RISK ─────────────────────────────────────
-RISK_PER_TRADE = 0.02       # 2% risk per trade (4x aggressive)
-MAX_DAILY_LOSS_PCT = 0.10   # 10% max daily loss — give it room
+RISK_PER_TRADE = 0.005      # 0.5% risk per trade (conservative)
+MAX_DAILY_LOSS_PCT = 0.02   # 2% max daily loss — hard stop
 MAX_POSITIONS = 5            # 5 concurrent max (focused aggression)
 MAX_TRADES_PER_DAY = 50
-MAX_CONSECUTIVE_LOSSES = 4  # more tolerance before disabling strategy
-MAX_POSITION_PCT = 0.25     # up to 25% of account per trade
+MAX_CONSECUTIVE_LOSSES = 2  # disable strategy after 2 consecutive losses
+MAX_POSITION_PCT = 0.05     # up to 5% of account per trade
 MIN_RISK_REWARD = 1.2       # lower R:R bar — more setups qualify
 
 # ─── MARKET HOURS (ET) ───────────────────────────────────
@@ -38,8 +38,8 @@ MARKET_CLOSE_MIN = 0
 ORB_PERIODS = [5, 15, 30]   # minutes
 ORB_VOLUME_MULT = 1.2       # lower volume bar — more breakouts qualify
 ORB_ATR_STOP = 1.2          # tighter stop
-ORB_ATR_T1 = 2.5            # bigger target 1
-ORB_ATR_T2 = 4.0            # bigger target 2 — let winners run
+ORB_ATR_T1 = 2.0            # target 1
+ORB_ATR_T2 = 3.0            # target 2
 ORB_END_HOUR = 10
 ORB_END_MIN = 30
 
@@ -119,11 +119,12 @@ TRADE_LOG_CSV = "trade_history.csv"
 
 # ─── DIRECTIONAL BIAS ────────────────────────────────────
 LONG_ONLY = False          # only take LONG trades
-SHORT_ONLY = False           # only take SHORT trades (overrides LONG_ONLY)
+SHORT_ONLY = True            # only take SHORT trades (overrides LONG_ONLY)
 
 # ─── TELEGRAM NOTIFICATIONS ──────────────────────────────
 TELEGRAM_BOT_TOKEN="8656598981:AAEdqezTQoY2RgJ-mw0j-sZzIZ_0hwU8Ze0"  # Your bot token
-TELEGRAM_CHAT_ID = "304395405"  # Your chat ID
+TELEGRAM_CHAT_ID = "-1003752685833"  # Hermes Swarm group
+TELEGRAM_THREAD_ID = "279"  # topic 279
 
 # ─── SENTIMENT ANALYSIS ───────────────────────────────────
 SENTIMENT_ENABLED = True                # Enable social media sentiment analysis
@@ -140,6 +141,6 @@ ML_MODEL_PATH = "ml_model.pkl"          # Path to trained ML model
 ML_SCALER_PATH = "ml_scaler.pkl"        # Path to feature scaler
 ML_LABELS_PATH = "ml_labels.pkl"        # Path to label encoder
 ML_TRAINING_DATA_PATH = "ml_training_data.csv"  # Path to training data collection
-ML_MIN_CONFIDENCE = 0.50                # MAX PROFIT MODE — lowered from 0.60
+ML_MIN_CONFIDENCE = 0.60                # restored — quality entries only
 ML_RETRAIN_INTERVAL = 24                # Retrain model every 24 hours
 ML_MIN_TRAINING_SAMPLES = 500           # Minimum samples needed for retraining

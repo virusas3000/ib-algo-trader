@@ -385,7 +385,7 @@ class Trader:
         self.orders: OrderManager = None
         self.strategy: Strategy = None
         self.trade_log = TradeLogger()
-        self.telegram = TelegramNotifier(cfg.TELEGRAM_BOT_TOKEN, cfg.TELEGRAM_CHAT_ID)
+        self.telegram = TelegramNotifier(cfg.TELEGRAM_BOT_TOKEN, cfg.TELEGRAM_CHAT_ID, getattr(cfg, 'TELEGRAM_THREAD_ID', None))
         self.connected = False
 
     def connect(self, retry: bool = False):
@@ -524,8 +524,8 @@ class Trader:
                         contract = p.contract
                         self.ib.qualifyContracts(contract)
                         order = MarketOrder(action, qty)
-                        order.tif = "GTC"  # avoid DAY preset cancellation
-                        order.outsideRth = True
+                        order.tif = "DAY"
+                        order.outsideRth = False
                         self.ib.placeOrder(contract, order)
                         log.info(f"[STARTUP] Closed overnight: {action} {qty} {sym} ({contract.exchange}/{contract.currency})")
                     except Exception as e:

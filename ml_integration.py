@@ -301,6 +301,14 @@ class EnhancedMLStrategy:
     
     def check_entry(self, symbol, bars, current_time):
         """Enhanced entry check with ML and sentiment analysis"""
+        # ── Blacklist gate (trained from real loss data) ──────────────────
+        _blacklist_path = Path(__file__).parent / 'symbol_blacklist.txt'
+        if _blacklist_path.exists():
+            _blacklisted = set(_blacklist_path.read_text().strip().split())
+            if symbol in _blacklisted:
+                logger.warning(f"${symbol} BLOCKED — on blacklist (serial loser from trade history)")
+                return None
+
         # Get original strategy signal
         original_signal = self.original_strategy.check_entry(symbol, bars, current_time)
         

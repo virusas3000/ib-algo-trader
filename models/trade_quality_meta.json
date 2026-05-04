@@ -1,12 +1,14 @@
 {
-  "trained_at": "2026-04-28T23:39:31",
-  "n_samples": 72,
-  "n_wins": 29,
-  "n_losses": 43,
+  "trained_at": "2026-05-04T23:38:00.098609",
+  "n_samples": 193,
+  "n_wins": 44,
+  "n_losses": 149,
+  "win_rate": 0.22797927461139897,
   "feature_names": [
     "hour_et",
     "dow",
     "is_long",
+    "is_blacklisted",
     "hour_sin",
     "hour_cos",
     "strat_ORB",
@@ -16,56 +18,85 @@
     "sym_vol",
     "sym_leveraged_etf",
     "sym_broad_etf",
-    "sym_bond_etf",
     "sym_mega_tech",
     "sym_semi",
+    "sym_energy_loser",
+    "sym_telecom_loser",
+    "sym_consumer_loser",
+    "sym_finance_loser",
+    "sym_china_adr",
+    "sym_fintech_loser",
+    "sym_ev_loser",
     "sym_single_stock",
-    "hour_x_long"
+    "hour_x_long",
+    "is_mtm_lesson"
   ],
-  "cv_accuracy": 0.6933333333333334,
-  "cv_auc": 0.7906944444444444,
-  "cv_f1": 0.6340326340326341,
-  "top_features": [
-    {
-      "name": "hour_sin",
-      "importance": 0.17412684299720568
-    },
-    {
-      "name": "hour_x_long",
-      "importance": 0.15833296173936862
-    },
-    {
-      "name": "hour_et",
-      "importance": 0.12995705813226707
-    },
-    {
-      "name": "hour_cos",
-      "importance": 0.11407442590431516
-    },
-    {
-      "name": "sym_mega_tech",
-      "importance": 0.10420948432024159
-    },
-    {
-      "name": "dow",
-      "importance": 0.09436778311977241
-    },
-    {
-      "name": "sym_broad_etf",
-      "importance": 0.07993421339863882
-    },
-    {
-      "name": "sym_single_stock",
-      "importance": 0.0406490485625915
-    },
-    {
-      "name": "strat_POWER_HOUR",
-      "importance": 0.03456211272531911
-    },
-    {
-      "name": "strat_ORB",
-      "importance": 0.03348069748750447
-    }
+  "cv_accuracy": 0.7773279352226721,
+  "cv_auc": 0.8642432950191571,
+  "cv_f1": 0.594523655850887,
+  "blacklisted_symbols": [
+    "AAL",
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "ARR",
+    "BOE",
+    "BOJ",
+    "BX",
+    "CAC",
+    "CAGR",
+    "COST",
+    "EBIT",
+    "EBITDA",
+    "FOMC",
+    "GOOGL",
+    "GS",
+    "IMF",
+    "IRR",
+    "LTV",
+    "MRR",
+    "NATO",
+    "NPV",
+    "OECD",
+    "OPEC",
+    "OXY",
+    "QOQ",
+    "RBA",
+    "SNB",
+    "SPY",
+    "TTM",
+    "WTO",
+    "YOY"
   ],
-  "recommended_min_confidence": 0.6
+  "lessons_from_mtm": [
+    "OXY",
+    "AAPL",
+    "GS",
+    "AMZN",
+    "BX",
+    "AMD",
+    "GOOGL",
+    "SPY",
+    "SOFI",
+    "PEP",
+    "5",
+    "PM",
+    "LCID",
+    "LRCX",
+    "857",
+    "PDD",
+    "RTX",
+    "AVGO",
+    "TQQQ",
+    "1398",
+    "9866",
+    "388",
+    "1093",
+    "HAL",
+    "VZ",
+    "MRVL",
+    "2823",
+    "IWM"
+  ],
+  "recommended_min_confidence": 0.62
 }

@@ -1,0 +1,274 @@
+{
+  "timestamp": "2026-05-04T22:35:17.126251",
+  "tws": {
+    "GrossPositionValue": 132119.17,
+    "NetLiquidation": 783027.27,
+    "TotalCashValue": 650828.57,
+    "UnrealizedPnL": -2164.62,
+    "RealizedPnL": -2285.48
+  },
+  "db": {
+    "total_pnl": 12217.23,
+    "today_pnl": 0.0,
+    "trade_count": 113,
+    "today_count": 5,
+    "open_in_db": 0
+  },
+  "discrepancy": 14502.71,
+  "discrepancy_pct": 634.5586047569875,
+  "positions": [
+    {
+      "symbol": "9866",
+      "qty": 1700.0,
+      "avg_cost": 49.1265968
+    },
+    {
+      "symbol": "9618",
+      "qty": 600.0,
+      "avg_cost": 117.115185
+    }
+  ],
+  "today_fills": [
+    {
+      "symbol": "1024",
+      "action": "BOT",
+      "qty": 1700.0,
+      "price": 45.06,
+      "time": "2026-05-04 03:08:00+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "1024",
+      "action": "SLD",
+      "qty": 1700.0,
+      "price": 44.78,
+      "time": "2026-05-04 03:42:00+00:00",
+      "pnl": -756.535148
+    },
+    {
+      "symbol": "2840",
+      "action": "BOT",
+      "qty": 20.0,
+      "price": 3318.0,
+      "time": "2026-05-04 03:48:02+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "9866",
+      "action": "BOT",
+      "qty": 1650.0,
+      "price": 48.6,
+      "time": "2026-05-04 03:59:00+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "2840",
+      "action": "SLD",
+      "qty": 20.0,
+      "price": 3311.0,
+      "time": "2026-05-04 05:00:12+00:00",
+      "pnl": -249.84253
+    },
+    {
+      "symbol": "9866",
+      "action": "SLD",
+      "qty": 1650.0,
+      "price": 48.44,
+      "time": "2026-05-04 05:01:01+00:00",
+      "pnl": -1279.103428
+    },
+    {
+      "symbol": "9618",
+      "action": "BOT",
+      "qty": 600.0,
+      "price": 116.9,
+      "time": "2026-05-04 07:07:00+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 100.0,
+      "price": 173.41,
+      "time": "2026-05-04 13:47:16+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 100.0,
+      "price": 173.27,
+      "time": "2026-05-04 13:47:16+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 250.0,
+      "price": 173.27,
+      "time": "2026-05-04 13:47:17+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 200.0,
+      "price": 173.41,
+      "time": "2026-05-04 13:47:19+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 125.0,
+      "price": 173.41,
+      "time": "2026-05-04 13:47:23+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 373.0,
+      "price": 173.41,
+      "time": "2026-05-04 13:47:26+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "BOT",
+      "qty": 33.0,
+      "price": 173.41,
+      "time": "2026-05-04 13:47:26+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "SPY",
+      "action": "BOT",
+      "qty": 190.0,
+      "price": 721.02,
+      "time": "2026-05-04 14:13:03+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "SPY",
+      "action": "BOT",
+      "qty": 40.0,
+      "price": 721.02,
+      "time": "2026-05-04 14:13:03+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "SPY",
+      "action": "BOT",
+      "qty": 34.0,
+      "price": 721.04,
+      "time": "2026-05-04 14:13:04+00:00",
+      "pnl": 0.0
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.7,
+      "time": "2026-05-04 14:27:22+00:00",
+      "pnl": -268.722716
+    },
+    {
+      "symbol": "SPY",
+      "action": "SLD",
+      "qty": 40.0,
+      "price": 721.55,
+      "time": "2026-05-04 14:27:22+00:00",
+      "pnl": 19.294372
+    },
+    {
+      "symbol": "SPY",
+      "action": "SLD",
+      "qty": 224.0,
+      "price": 721.55,
+      "time": "2026-05-04 14:27:22+00:00",
+      "pnl": 112.668486
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.79,
+      "time": "2026-05-04 14:27:26+00:00",
+      "pnl": -259.222901
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.87,
+      "time": "2026-05-04 14:27:34+00:00",
+      "pnl": -251.473066
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.95,
+      "time": "2026-05-04 14:27:40+00:00",
+      "pnl": -243.473231
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 149.0,
+      "price": 170.95,
+      "time": "2026-05-04 14:27:40+00:00",
+      "pnl": -362.775114
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.95,
+      "time": "2026-05-04 14:27:41+00:00",
+      "pnl": -243.473231
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 200.0,
+      "price": 170.96,
+      "time": "2026-05-04 14:27:43+00:00",
+      "pnl": -484.946503
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 170.96,
+      "time": "2026-05-04 14:27:46+00:00",
+      "pnl": -242.473251
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 171.0,
+      "time": "2026-05-04 14:27:55+00:00",
+      "pnl": -238.473334
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 100.0,
+      "price": 171.0,
+      "time": "2026-05-04 14:27:55+00:00",
+      "pnl": -238.473334
+    },
+    {
+      "symbol": "RDDT",
+      "action": "SLD",
+      "qty": 32.0,
+      "price": 170.96,
+      "time": "2026-05-04 14:28:04+00:00",
+      "pnl": -77.59144
+    }
+  ],
+  "status": "OUT_OF_SYNC"
+}
