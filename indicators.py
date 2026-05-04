@@ -61,4 +61,23 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["atr14"]   = df["atr14"].fillna(df["close"] * 0.01)
     df["vwap"]    = df["vwap"].fillna(df["close"])
     df["rvol"]    = df["rvol"].fillna(1.0)
+    # Bollinger Bands
+    df["bb_mid"]  = sma(df["close"], 20)
+    df["bb_std"]  = df["close"].rolling(20).std()
+    df["bb_upper"] = df["bb_mid"] + 2 * df["bb_std"]
+    df["bb_lower"] = df["bb_mid"] - 2 * df["bb_std"]
+    df["bb_mid"]  = df["bb_mid"].fillna(df["close"])
+    df["bb_upper"] = df["bb_upper"].fillna(df["close"] * 1.02)
+    df["bb_lower"] = df["bb_lower"].fillna(df["close"] * 0.98)
+    # MACD
+    df["macd"]        = ema(df["close"], 12) - ema(df["close"], 26)
+    df["macd_signal"] = ema(df["macd"], 9)
+    df["macd"]        = df["macd"].fillna(0)
+    df["macd_signal"] = df["macd_signal"].fillna(0)
+    # EMA21 for cross strategy
+    df["ema21"]   = ema(df["close"], 21)
+    df["ema21"]   = df["ema21"].fillna(df["close"])
+    # Intraday HOD/LOD
+    df["hod"]     = df["high"].cummax()
+    df["lod"]     = df["low"].cummin()
     return df

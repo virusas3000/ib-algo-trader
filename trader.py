@@ -197,23 +197,29 @@ class DataManager:
     def fetch_bars(self, symbol: str, duration: str = "1 D", bar_size: str = "5 mins") -> pd.DataFrame:
         if symbol not in self._contracts:
             return pd.DataFrame()
-        try:
-            bars = self.ib.reqHistoricalData(
-                self._contracts[symbol],
-                endDateTime="",
-                durationStr=duration,
-                barSizeSetting=bar_size,
-                whatToShow="TRADES",
-                useRTH=True,
-                formatDate=1,
-            )
-            if not bars:
-                return pd.DataFrame()
-            df = util.df(bars)
-            df.columns = [c.lower() for c in df.columns]
-            return compute_indicators(df)
-        except Exception as e:
-            raise ConnectionError(str(e))
+        contract = self._contracts[symbol]
+        # Try several whatToShow values — paper accts often lack TRADES data
+        for what in ("TRADES", "MIDPOINT", "BID_ASK"):
+            try:
+                bars = self.ib.reqHistoricalData(
+                    contract,
+                    endDateTime="",
+                    durationStr=duration,
+                    barSizeSetting=bar_size,
+                    whatToShow=what,
+                    useRTH=True,
+                    formatDate=1,
+                )
+                if bars:
+                    df = util.df(bars)
+                    df.columns = [c.lower() for c in df.columns]
+                    if what != "TRADES":
+                        log.debug(f"{symbol} bars via {what} fallback")
+                    return compute_indicators(df)
+            except Exception as e:
+                log.debug(f"{symbol} {what} failed: {e}")
+                continue
+        return pd.DataFrame()
 
     def fetch_vix(self) -> float:
         try:
@@ -256,12 +262,81 @@ class OrderManager:
         except Exception as e:
             log.error(f"Error in fill callback: {e}")
 
+    def _check_margin_cushion(self, signal: Signal) -> tuple[bool, str]:
+        """Live margin pre-check. Returns (ok, reason).
+
+        Skips entry if Available Funds < (estimated trade margin + cushion %).
+        Uses naive est: notional × INIT_MARGIN_PCT (default 50% reg-T) for stocks.
+        """
+        try:
+            self.ib.reqAccountSummary()
+            self.ib.sleep(1)
+            vals = {v.tag: v.value for v in self.ib.accountSummary()}
+            avail = float(vals.get("AvailableFunds", 0))
+            equity = float(vals.get("EquityWithLoanValue", 0))
+            init_req = float(vals.get("InitMarginReq", 0))
+            if avail <= 0 or equity <= 0:
+                return True, "no margin data"  # fail open
+            cushion_pct = float(getattr(cfg, 'MARGIN_CUSHION_PCT', 0.10))
+            init_margin_pct = float(getattr(cfg, 'INIT_MARGIN_PCT', 0.50))
+            est_trade_margin = signal.size * signal.entry * init_margin_pct
+            required_cushion = equity * cushion_pct
+            remaining_after = avail - est_trade_margin
+            if remaining_after < required_cushion:
+                return False, (
+                    f"avail={avail:,.0f} est_margin={est_trade_margin:,.0f} "
+                    f"remaining={remaining_after:,.0f} < cushion={required_cushion:,.0f} "
+                    f"({cushion_pct:.0%} of equity {equity:,.0f})"
+                )
+            return True, (f"avail={avail:,.0f} est_margin={est_trade_margin:,.0f} "
+                          f"remaining={remaining_after:,.0f}")
+        except Exception as e:
+            log.warning(f"[MARGIN-CHECK] failed, skipping check: {e}")
+            return True, f"check failed: {e}"
+
     def enter(self, signal: Signal):
+        # Trade-quality gate: veto entries with low predicted win-prob
+        try:
+            from trade_quality_gate import predict_win_prob
+            from datetime import datetime, timezone, timedelta
+            ET = timezone(timedelta(hours=-4))  # EDT
+            now_et = datetime.now(ET)
+            min_p = float(getattr(cfg, 'TRADE_QUALITY_MIN_WIN_PROB', 0.50))
+            p_win = predict_win_prob(signal.symbol, signal.side.value,
+                                     signal.strategy.value, now_et)
+            if p_win < min_p:
+                log.info(
+                    f"[QUALITY-GATE] SKIP {signal.symbol} {signal.side.value} "
+                    f"{signal.strategy.value}  p_win={p_win:.2f} < {min_p:.2f}"
+                )
+                return
+            log.info(f"[QUALITY-GATE] PASS {signal.symbol}  p_win={p_win:.2f}")
+        except Exception as e:
+            log.warning(f"[QUALITY-GATE] disabled (model unavailable): {e}")
+
+        # Live margin cushion check (hard gate)
+        ok, msg = self._check_margin_cushion(signal)
+        if not ok:
+            log.warning(f"[MARGIN-GATE] SKIP {signal.symbol} {signal.side.value} — {msg}")
+            if self.telegram:
+                try:
+                    self.telegram.send_message(
+                        f"⚠️ MARGIN BLOCK\n"
+                        f"{signal.symbol} {signal.side.value} x{signal.size} @ {signal.entry:.2f}\n"
+                        f"{msg}"
+                    )
+                except Exception:
+                    pass
+            return
+        log.info(f"[MARGIN-GATE] PASS {signal.symbol} — {msg}")
+
         if self.dry_run:
             log.info(f"[DRY-RUN] Would enter: {signal.symbol} {signal.side.value} x{signal.size} @ {signal.entry:.2f}")
             return
         action = "BUY" if signal.side == Side.LONG else "SELL"
         order = MarketOrder(action, signal.size)
+        order.tif = "DAY"
+        order.outsideRth = False
         contract = Stock(signal.symbol, "SMART", "USD")
         trade = self.ib.placeOrder(contract, order)
         trade.fillEvent += self._on_fill
@@ -292,6 +367,8 @@ class OrderManager:
             return
         action = "SELL" if side == Side.LONG else "BUY"
         order = MarketOrder(action, size)
+        order.tif = "DAY"
+        order.outsideRth = False
         contract = Stock(symbol, "SMART", "USD")
         trade = self.ib.placeOrder(contract, order)
         trade.fillEvent += self._on_fill
@@ -322,6 +399,13 @@ class Trader:
                 self.ib.connect(cfg.IB_HOST, cfg.IB_PORT, clientId=cfg.CLIENT_ID, timeout=15)
                 self.connected = True
                 log.info("Connected to IB TWS.")
+                # Allow delayed data when live subscription unavailable (paper accts)
+                # 1=live, 2=frozen, 3=delayed, 4=delayed-frozen. 3 falls back gracefully.
+                try:
+                    self.ib.reqMarketDataType(3)
+                    log.info("Market data type set to 3 (delayed when live unavailable).")
+                except Exception as e:
+                    log.warning(f"reqMarketDataType failed: {e}")
                 if attempt > 1:  # Only send reconnection alerts, not initial connection
                     self.telegram.send_connection_alert("CONNECTED", "Successfully reconnected to IB TWS")
                 return
@@ -422,6 +506,41 @@ class Trader:
         # Fetch previous closes for gap detection
         self._fetch_prev_closes(watchlist)
 
+        # FIX 2: Startup cleanup — close any overnight positions left from previous session
+        try:
+            from ib_insync import MarketOrder, Stock
+            overnight = [p for p in self.ib.positions() if p.position != 0]
+            # Only close US stocks — don't touch HK bot's SEHK/HKD positions
+            overnight = [p for p in overnight if p.contract.currency == "USD"]
+            if overnight:
+                log.warning(f"[STARTUP] Found {len(overnight)} overnight position(s) — closing before trading begins")
+                self.telegram.send_message(f"⚠️ [STARTUP CLEANUP] Found {len(overnight)} overnight position(s) left from previous session — closing now: {[p.contract.symbol for p in overnight]}")
+                for p in overnight:
+                    try:
+                        sym = p.contract.symbol
+                        qty = abs(int(p.position))
+                        action = "SELL" if p.position > 0 else "BUY"
+                        # Use the actual contract from IB (preserves exchange/currency for non-US stocks)
+                        contract = p.contract
+                        self.ib.qualifyContracts(contract)
+                        order = MarketOrder(action, qty)
+                        order.tif = "GTC"  # avoid DAY preset cancellation
+                        order.outsideRth = True
+                        self.ib.placeOrder(contract, order)
+                        log.info(f"[STARTUP] Closed overnight: {action} {qty} {sym} ({contract.exchange}/{contract.currency})")
+                    except Exception as e:
+                        log.error(f"[STARTUP] Failed to close overnight {p.contract.symbol}: {e}")
+                self.ib.sleep(5)
+                remaining = [p for p in self.ib.positions() if p.position != 0]
+                if remaining:
+                    log.error(f"[STARTUP] Still {len(remaining)} positions after cleanup: {[p.contract.symbol for p in remaining]}")
+                    self.telegram.send_message(f"🚨 [STARTUP] Could not close all overnight positions: {[p.contract.symbol for p in remaining]}")
+                else:
+                    log.info("[STARTUP] ✅ All overnight positions cleared")
+                    self.telegram.send_message("✅ [STARTUP] All overnight positions cleared — ready to trade")
+        except Exception as e:
+            log.error(f"[STARTUP] Overnight cleanup failed: {e}")
+
         log.info(f"Waiting for market... ET time: {datetime.now(ET).strftime('%H:%M:%S ET')}")
 
         try:
@@ -435,6 +554,15 @@ class Trader:
                     for s in watchlist:
                         self.data.qualify(s)
                     log.info("[RECONNECT] Back online!")
+                    # FIX 1: After reconnect, if we're past EOD time, immediately flatten all
+                    reconnect_t = datetime.now(ET).time()
+                    if reconnect_t >= time(cfg.FORCE_CLOSE_HOUR, cfg.FORCE_CLOSE_MIN):
+                        log.warning("[RECONNECT EOD] Reconnected after EOD — force-closing all positions NOW")
+                        self.telegram.send_message("🔒 [RECONNECT EOD] Bot reconnected after market close — force-closing all open positions")
+                        self._flatten_all(ExitReason.EOD_CLOSE)
+                        self._print_summary()
+                        self._send_daily_summary()
+                        break
                 now = datetime.now(ET)
                 now_t = now.time()
 
@@ -576,12 +704,31 @@ class Trader:
             lambda: self.strategy.check_vwap_reversion(symbol, df, now),
             lambda: self.strategy.check_momentum(symbol, df, now),
             lambda: self.strategy.check_power_hour(symbol, df, now),
+            lambda: self.strategy.check_vwap_reclaim(symbol, df, now),
+            lambda: self.strategy.check_gap_and_go(symbol, df, now),
+            lambda: self.strategy.check_bull_flag(symbol, df, now),
+            lambda: self.strategy.check_rsi_extreme(symbol, df, now),
+            lambda: self.strategy.check_hod_breakout(symbol, df, now),
+            lambda: self.strategy.check_ema_cross(symbol, df, now),
+            # Andrew Aziz strategies
+            lambda: self.strategy.check_abcd_pattern(symbol, df, now),
+            lambda: self.strategy.check_red_to_green(symbol, df, now),
+            lambda: self.strategy.check_bottom_reversal(symbol, df, now),
+            lambda: self.strategy.check_fallen_angel(symbol, df, now),
+            lambda: self.strategy.check_ma_trend(symbol, df, now),
         ]:
             signal = check_fn()
             if signal:
                 break
 
         if signal:
+            # Cooldown check before placing order
+            last_exit = self.strategy._exit_cooldown.get(signal.symbol)
+            if last_exit:
+                elapsed = (datetime.now(ET) - last_exit.replace(tzinfo=ET) if last_exit.tzinfo is None else datetime.now(ET) - last_exit).total_seconds() / 60
+                if elapsed < 30:
+                    log.info(f"[COOLDOWN] Blocked order {signal.symbol} — {elapsed:.0f}min since last exit")
+                    return
             log.info(f"[DAY TRADE ENTRY] Opening {signal.symbol} {signal.side.value} position (time: {now_t.strftime('%H:%M:%S')})")
             self.orders.enter(signal)
             self.strategy.record_entry(signal, now)
@@ -605,20 +752,50 @@ class Trader:
         log.info("Prev closes fetched. Starting main loop...")
 
     def _flatten_all(self, reason: ExitReason):
+        """STRICT EOD settle — cancel all working orders, flatten every IB position
+        (not just bot-tracked), verify, retry, and alert on any survivors."""
+        # 1) Cancel ALL open/working orders first so resting stops/limits can't
+        #    re-fire after we flatten.
+        try:
+            open_trades = list(self.ib.openTrades())
+            if open_trades:
+                log.info(f"[EOD STRICT] Cancelling {len(open_trades)} working orders...")
+                for tr in open_trades:
+                    try:
+                        self.ib.cancelOrder(tr.order)
+                    except Exception as e:
+                        log.error(f"Failed to cancel order {tr.order.orderId}: {e}")
+                self.ib.sleep(2)
+        except Exception as e:
+            log.error(f"[EOD STRICT] openTrades() failed: {e}")
+
+        # 2) Flatten every position the BOT knows about.
         for sym in list(self.strategy.positions.keys()):
             try:
-                df = self.data.fetch_bars(sym)
-                price = float(df.iloc[-1]["close"]) if not df.empty else 0
                 pos = self.strategy.positions[sym]
+                # Get real-time last price (not stale bar close)
+                price = 0.0
+                try:
+                    from ib_insync import Stock as _Stock
+                    _contract = _Stock(sym, "SMART", "USD")
+                    self.ib.qualifyContracts(_contract)
+                    ticker = self.ib.reqMktData(_contract, "", False, False)
+                    self.ib.sleep(2)
+                    price = ticker.last or ticker.close or ticker.bid or 0.0
+                    self.ib.cancelMktData(_contract)
+                except Exception as _pe:
+                    log.warning(f"[EOD] reqMktData failed for {sym}: {_pe} — falling back to bars")
+                if not price:
+                    df = self.data.fetch_bars(sym)
+                    price = float(df.iloc[-1]["close"]) if not df.empty else pos.entry_price
+                    log.warning(f"[EOD] Using bar close for {sym} price: {price}")
                 self.orders.exit(sym, pos.side, pos.size, reason.value)
                 self.strategy.record_exit(sym, price, reason)
-                
-                # Send Telegram exit notification for mass closure
                 pnl = round((price - pos.entry_price) * pos.size * (1 if pos.side == Side.LONG else -1), 2)
                 try:
                     self.telegram.send_trade_exit(
                         symbol=sym, side=pos.side.value, strategy=pos.strategy.value,
-                        entry_price=pos.entry_price, exit_price=price, 
+                        entry_price=pos.entry_price, exit_price=price,
                         size=pos.size, pnl=pnl, reason=reason.value
                     )
                 except Exception as e:
@@ -626,15 +803,67 @@ class Trader:
             except Exception as e:
                 log.error(f"Error flattening {sym}: {e}")
 
+        # 3) Wait for fills, then reconcile against IB's actual positions and
+        #    flatten anything still showing — retry up to 3 times.
+        from ib_insync import MarketOrder, Stock
+        for attempt in range(1, 4):
+            self.ib.sleep(5)
+            try:
+                ib_positions = [p for p in self.ib.positions() if p.position != 0]
+                # Only close US stocks (USD currency) — don't touch HK bot's SEHK/HKD positions
+                ib_positions = [p for p in ib_positions if p.contract.currency == "USD"]
+            except Exception as e:
+                log.error(f"[EOD STRICT] positions() failed (attempt {attempt}): {e}")
+                continue
+            if not ib_positions:
+                log.info("[EOD STRICT] ✅ All positions confirmed flat at IB.")
+                break
+            log.warning(f"[EOD STRICT] Attempt {attempt}: {len(ib_positions)} residual position(s) at IB → force-closing")
+            for p in ib_positions:
+                try:
+                    sym = p.contract.symbol
+                    qty = abs(int(p.position))
+                    action = "SELL" if p.position > 0 else "BUY"
+                    # Use actual IB contract to preserve exchange/currency for non-US stocks
+                    contract = p.contract
+                    self.ib.qualifyContracts(contract)
+                    self.ib.placeOrder(contract, MarketOrder(action, qty))
+                    log.info(f"[EOD STRICT] Residual close: {action} {qty} {sym} ({contract.exchange}/{contract.currency})")
+                except Exception as e:
+                    log.error(f"[EOD STRICT] Failed to close residual {p.contract.symbol}: {e}")
+        else:
+            # Loop exhausted without break → still residual
+            try:
+                survivors = [(p.contract.symbol, p.position) for p in self.ib.positions() if p.position != 0]
+                if survivors:
+                    msg = f"🚨 EOD SETTLE FAILED — survivors: {survivors}"
+                    log.error(msg)
+                    try:
+                        self.telegram.send_message(msg)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        # 4) Final sweep: cancel any orders that re-spawned during flatten.
+        try:
+            for tr in self.ib.openTrades():
+                try:
+                    self.ib.cancelOrder(tr.order)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     def _print_summary(self):
         log.info(self.strategy.get_summary())
     
     def _send_daily_summary(self):
         """Send end of day summary to Telegram"""
         try:
-            trades = self.strategy.trade_count
-            wins = len([t for t in self.strategy.completed_trades if t.pnl >= 0])
-            losses = trades - wins
+            wins = sum(s.wins for s in self.strategy.stats.values())
+            losses = sum(s.losses for s in self.strategy.stats.values())
+            trades = wins + losses or self.strategy.trade_count
             total_pnl = self.strategy.daily_pnl
             
             self.telegram.send_daily_summary(

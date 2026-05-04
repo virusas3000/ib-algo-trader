@@ -1,0 +1,71 @@
+{
+  "trained_at": "2026-04-28T23:39:31",
+  "n_samples": 72,
+  "n_wins": 29,
+  "n_losses": 43,
+  "feature_names": [
+    "hour_et",
+    "dow",
+    "is_long",
+    "hour_sin",
+    "hour_cos",
+    "strat_ORB",
+    "strat_POWER_HOUR",
+    "strat_GAP_FILL",
+    "strat_MOMENTUM",
+    "sym_vol",
+    "sym_leveraged_etf",
+    "sym_broad_etf",
+    "sym_bond_etf",
+    "sym_mega_tech",
+    "sym_semi",
+    "sym_single_stock",
+    "hour_x_long"
+  ],
+  "cv_accuracy": 0.6933333333333334,
+  "cv_auc": 0.7906944444444444,
+  "cv_f1": 0.6340326340326341,
+  "top_features": [
+    {
+      "name": "hour_sin",
+      "importance": 0.17412684299720568
+    },
+    {
+      "name": "hour_x_long",
+      "importance": 0.15833296173936862
+    },
+    {
+      "name": "hour_et",
+      "importance": 0.12995705813226707
+    },
+    {
+      "name": "hour_cos",
+      "importance": 0.11407442590431516
+    },
+    {
+      "name": "sym_mega_tech",
+      "importance": 0.10420948432024159
+    },
+    {
+      "name": "dow",
+      "importance": 0.09436778311977241
+    },
+    {
+      "name": "sym_broad_etf",
+      "importance": 0.07993421339863882
+    },
+    {
+      "name": "sym_single_stock",
+      "importance": 0.0406490485625915
+    },
+    {
+      "name": "strat_POWER_HOUR",
+      "importance": 0.03456211272531911
+    },
+    {
+      "name": "strat_ORB",
+      "importance": 0.03348069748750447
+    }
+  ],
+  "recommended_min_confidence": 0.6
+}

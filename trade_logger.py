@@ -18,6 +18,10 @@ PATTERN = re.compile(
     r"(?P<sym>\S+) (?P<side>LONG|SHORT) @ (?P<px>[\d.]+) \| "
     r"P&L=\$(?P<pnl>[+-]?[\d.]+) \| Reason=(?P<reason>\S+) \| Strategy=(?P<strat>\S+)"
 )
+ENTRY_PATTERN = re.compile(
+    r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ .*? TRADE ENTERED \| "
+    r"(?P<sym>\S+) (?P<side>LONG|SHORT) x\d+ @ (?P<px>[\d.]+)"
+)
 
 
 def init_db(conn):
@@ -27,6 +31,7 @@ def init_db(conn):
             exit_time TEXT NOT NULL,
             symbol    TEXT NOT NULL,
             side      TEXT NOT NULL,
+            entry_price REAL,
             exit_price REAL,
             pnl       REAL NOT NULL,
             reason    TEXT,
@@ -34,6 +39,10 @@ def init_db(conn):
             UNIQUE(exit_time, symbol)
         )
     """)
+    # Migrate: add entry_price if missing (for existing DBs)
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()]
+    if "entry_price" not in cols:
+        conn.execute("ALTER TABLE trades ADD COLUMN entry_price REAL")
     conn.commit()
 
 
@@ -45,6 +54,14 @@ def ingest():
     conn = sqlite3.connect(DB_FILE)
     init_db(conn)
 
+    # Build entry price lookup: {symbol -> latest entry_price} from log
+    entry_prices = {}
+    with open(LOG_FILE, "r") as f:
+        for line in f:
+            m = ENTRY_PATTERN.search(line)
+            if m:
+                entry_prices[m.group("sym")] = float(m.group("px"))
+
     inserted = 0
     with open(LOG_FILE, "r") as f:
         for line in f:
@@ -52,15 +69,20 @@ def ingest():
             if not m:
                 continue
             try:
+                sym = m.group("sym")
+                exit_px = float(m.group("px"))
+                pnl = float(m.group("pnl"))
+                entry_px = entry_prices.get(sym)
                 conn.execute(
-                    "INSERT OR IGNORE INTO trades (exit_time, symbol, side, exit_price, pnl, reason, strategy) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO trades (exit_time, symbol, side, entry_price, exit_price, pnl, reason, strategy) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         m.group("ts"),
-                        m.group("sym"),
+                        sym,
                         m.group("side"),
-                        float(m.group("px")),
-                        float(m.group("pnl")),
+                        entry_px,
+                        exit_px,
+                        pnl,
                         m.group("reason"),
                         m.group("strat"),
                     ),

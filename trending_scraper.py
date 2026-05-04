@@ -55,6 +55,10 @@ BLACKLIST = {
     "IN","ON","AT","TO","BY","OF","UP","SO","NO","GO","WE","YOU","HE","SHE",
     "WILL","SHARE","DCA","XSP","CAR","EV","EDIT","TPU","MU","PE",
     "TRUMP","BIDEN","HARRIS","VANCE","MUSK","POWELL","YELLEN",
+    "CPU","GPU","TA","USDC","CFO","FCF","RAM","SSD","OS","UI","FX","TVL",  # tech/finance jargon, not tickers
+    "OPEC","FOMC","CAGR","NATO","OECD","WTO","IMF","BOE","BOJ","RBA","SNB",  # orgs/econ acronyms
+    "YOY","QOQ","MOM","TTM","ARR","MRR","CAC","LTV","NPV","IRR","EBIT","EBITDA",  # finance metrics
+    "AAL",  # spurious — was scoring 10 on r/investing as 'all'
 }
 
 # Tickers to KEEP even if short

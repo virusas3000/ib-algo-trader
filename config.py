@@ -6,16 +6,16 @@ Multi-strategy day trading engine
 # ─── CONNECTION ──────────────────────────────────────────
 IB_HOST = "127.0.0.1"
 IB_PORT = 7497          # 7497 = TWS Paper | 4002 = Gateway Paper | 7496 = TWS Live
-CLIENT_ID = 21
+CLIENT_ID = 29
 
 # ─── ACCOUNT & RISK ─────────────────────────────────────
-RISK_PER_TRADE = 0.005      # 0.5% risk per trade (reduced after losses)
-MAX_DAILY_LOSS_PCT = 0.02   # 2% max daily loss → hard stop
-MAX_POSITIONS = 15           # max 15 concurrent (increased for ML trading)
+RISK_PER_TRADE = 0.02       # 2% risk per trade (4x aggressive)
+MAX_DAILY_LOSS_PCT = 0.10   # 10% max daily loss — give it room
+MAX_POSITIONS = 5            # 5 concurrent max (focused aggression)
 MAX_TRADES_PER_DAY = 50
-MAX_CONSECUTIVE_LOSSES = 2  # disable strategy after just 2 losses
-MAX_POSITION_PCT = 0.10     # max 10% of account in one trade
-MIN_RISK_REWARD = 1.5       # require 1.5:1 R:R minimum (reduced for more opportunities)
+MAX_CONSECUTIVE_LOSSES = 4  # more tolerance before disabling strategy
+MAX_POSITION_PCT = 0.25     # up to 25% of account per trade
+MIN_RISK_REWARD = 1.2       # lower R:R bar — more setups qualify
 
 # ─── MARKET HOURS (ET) ───────────────────────────────────
 MARKET_OPEN_HOUR = 9
@@ -36,11 +36,11 @@ MARKET_CLOSE_MIN = 0
 
 # ─── ORB STRATEGY ────────────────────────────────────────
 ORB_PERIODS = [5, 15, 30]   # minutes
-ORB_VOLUME_MULT = 1.5       # volume must be 1.5x 20-day avg
-ORB_ATR_STOP = 1.5          # stop = 1.5x ATR
-ORB_ATR_T1 = 2.0            # target 1 = 2x ATR
-ORB_ATR_T2 = 3.0            # target 2 = 3x ATR
-ORB_END_HOUR = 10           # ORB window ends at 10:30 ET
+ORB_VOLUME_MULT = 1.2       # lower volume bar — more breakouts qualify
+ORB_ATR_STOP = 1.2          # tighter stop
+ORB_ATR_T1 = 2.5            # bigger target 1
+ORB_ATR_T2 = 4.0            # bigger target 2 — let winners run
+ORB_END_HOUR = 10
 ORB_END_MIN = 30
 
 # ─── VWAP MEAN REVERSION ─────────────────────────────────
@@ -56,7 +56,23 @@ GAP_MAX_SPY_TREND = 0.8     # don't fade gap-up if SPY trending up >0.8%
 GAP_REQUIRE_REVERSAL = True # wait for first 5min candle to show reversal
 
 # ─── DISABLED STRATEGIES (manual override) ────────────────
-DISABLED_STRATEGIES = ["GAP_FILL"]   # gap-fill chopped on 04-23 (-$2,402); disabled until reviewed
+DISABLED_STRATEGIES = []   # MAX PROFIT MODE — all strategies enabled
+
+# ─── ORB DEAD-ZONE BLOCK ─────────────────────────────────────
+ORB_BLOCK_HOURS_ET = []    # MAX PROFIT MODE — no hour blocks
+
+# ─── DIRECTION BIAS ──────────────────────────────────────────
+# SHORT trades: 7 trades, 1 win (14%), -$2,909. Disable SHORT until SHORT signal quality improves.
+LONG_ONLY = True             # only take LONG trades — SHORT side has been catastrophic
+
+# ─── TRADE QUALITY GATE ──────────────────────────────────────
+TRADE_QUALITY_MIN_WIN_PROB = 0.35   # MAX PROFIT MODE — lowered from 0.50
+
+# ─── MARGIN PROTECTION ───────────────────────────────────────
+# Live pre-trade margin check (queries IB AccountSummary). Skips entry if remaining
+# Available Funds after the trade would fall below MARGIN_CUSHION_PCT of equity.
+MARGIN_CUSHION_PCT = 0.10    # require 10% equity cushion to remain free after entry
+INIT_MARGIN_PCT    = 0.50    # Reg-T initial margin assumption for stocks (overnight=50%)
 
 # ─── POWER HOUR ──────────────────────────────────────────
 POWER_HOUR_START = 15       # 3:00 PM ET
@@ -124,6 +140,6 @@ ML_MODEL_PATH = "ml_model.pkl"          # Path to trained ML model
 ML_SCALER_PATH = "ml_scaler.pkl"        # Path to feature scaler
 ML_LABELS_PATH = "ml_labels.pkl"        # Path to label encoder
 ML_TRAINING_DATA_PATH = "ml_training_data.csv"  # Path to training data collection
-ML_MIN_CONFIDENCE = 0.75                # Minimum confidence for ML signals (raised from 0.65 after 04-23 losses)
+ML_MIN_CONFIDENCE = 0.50                # MAX PROFIT MODE — lowered from 0.60
 ML_RETRAIN_INTERVAL = 24                # Retrain model every 24 hours
 ML_MIN_TRAINING_SAMPLES = 500           # Minimum samples needed for retraining

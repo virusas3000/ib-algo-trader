@@ -3,7 +3,7 @@
 LOG="/Users/vickhung/Desktop/ib_algo_trader/watchdog.log"
 TRADER_DIR="/Users/vickhung/Desktop/ib_algo_trader"
 
-if ! pgrep -f "python.*trader.py" > /dev/null 2>&1; then
+if ! pgrep -fi "python.*trader\.py" > /dev/null 2>&1; then
     echo "$(date): trader.py not running — restarting..." >> "$LOG"
     cd "$TRADER_DIR"
     nohup python3 trader.py >> algo.log 2>&1 &
